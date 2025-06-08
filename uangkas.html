@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="style.css" />
+  <title>Uang Kas Sekolah</title>
+    </head>
+<body>
+  <header>
+    <h1>Uang Kas Sekolah</h1>
+  </header>
+  <main>
+    <section aria-labelledby="form-title">
+      <h2 id="form-title">Tambah Pembayaran Kas</h2>
+      <form id="payment-form" novalidate>
+        <div>
+          <label for="studentName">Nama Siswa</label>
+          <input
+            type="text"
+            id="studentName"
+            name="studentName"
+            required
+            placeholder="Masukkan Nama"
+            autocomplete="off"
+          />
+        </div>
+        <div>
+          <label for="className">Kelas</label>
+          <input
+            type="text"
+            id="className"
+            name="className"
+            required
+            placeholder="Masukkan Kelas"
+            autocomplete="off"
+          />
+        </div>
+        <div>
+          <label for="amount">Jumlah (Rp)</label>
+          <input
+            type="number"
+            id="amount"
+            name="amount"
+            min="1000"
+            required
+            placeholder="Contoh: 2000"
+          />
+        </div>
+        <div>
+          <label for="date">Tanggal</label>
+          <input type="date" id="date" name="date" required />
+        </div>
+        <button type="submit">Tambah Pembayaran</button>
+      </form>
+    </section>
+
+    <section aria-labelledby="summary-title">
+      <h2 id="summary-title">Ringkasan Kas Sekolah</h2>
+      <div class="summary" aria-live="polite" aria-atomic="true">
+        <div class="summary-item">
+          <h3 id="total-amount">Rp 0</h3>
+          <p>Total Uang Terkumpul</p>
+        </div>
+        <div class="summary-item">
+          <h3 id="payment-count">0</h3>
+          <p>Jumlah Pembayaran</p>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="records-title">
+      <h2 id="records-title">Daftar Pembayaran</h2>
+      <table aria-describedby="records-title" id="payment-table" role="grid">
+        <head>
+          <tr>
+            <th>Nama Siswa</th>
+            <th>Kelas</th>
+            <th>Jumlah (Rp)</th>
+            <th>Tanggal</th>
+          </tr>
+        </head>
+        <body>
+          
+        </body>
+      </table>
+    </section>
+  </main>
+  <script>
+    (() => {
+      const form = document.getElementById('payment-form');
+      const studentNameInput = document.getElementById('studentName');
+      const classNameInput = document.getElementById('className');
+      const amountInput = document.getElementById('amount');
+      const dateInput = document.getElementById('date');
+      const paymentTableBody = document.querySelector('#payment-table tbody');
+      const totalAmountElem = document.getElementById('total-amount');
+      const paymentCountElem = document.getElementById('payment-count');
+
+      const STORAGE_KEY = 'uangKasSekolahPayments';
+
+      
+      function loadPayments() {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          try {
+            const data = JSON.parse(stored);
+            if (Array.isArray(data)) return data;
+          } catch (e) {
+            return [];
+          }
+        }
+        return [];
+      }
+
+      function savePayments(payments) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payments));
+      }
+
+     
+      function formatRupiah(number) {
+        return 'Rp ' + number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+      }
+
+      
+      function formatDate(dateStr) {
+        const d = new Date(dateStr);
+        if (isNaN(d)) return '';
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = d.getFullYear();
+        return `${day}/${month}/${year}`;
+      }
+
+      
+      function renderPayments(payments) {
+        paymentTableBody.innerHTML = '';
+        if (payments.length === 0) {
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 4;
+          td.style.textAlign = 'center';
+          td.textContent = 'Belum ada data pembayaran.';
+          tr.appendChild(td);
+          paymentTableBody.appendChild(tr);
+          return;
+        }
+        payments.forEach(({ studentName, className, amount, date }) => {
+          const tr = document.createElement('tr');
+          const tdName = document.createElement('td');
+          tdName.textContent = studentName;
+          const tdClass = document.createElement('td');
+          tdClass.textContent = className;
+          const tdAmount = document.createElement('td');
+          tdAmount.textContent = formatRupiah(amount);
+          const tdDate = document.createElement('td');
+          tdDate.textContent = formatDate(date);
+          tr.append(tdName, tdClass, tdAmount, tdDate);
+          paymentTableBody.appendChild(tr);
+        });
+      }
+
+      
+      function updateSummary(payments) {
+        const total = payments.reduce((acc, cur) => acc + Number(cur.amount), 0);
+        totalAmountElem.textContent = formatRupiah(total);
+        paymentCountElem.textContent = payments.length;
+      }
+
+      
+      function setDefaultDate() {
+        const today = new Date().toISOString().slice(0, 10);
+        dateInput.value = today;
+      }
+
+      
+      form.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        if (!form.checkValidity()) {
+          form.reportValidity();
+          return;
+        }
+
+        
+        const newPayment = {
+          studentName: studentNameInput.value.trim(),
+          className: classNameInput.value.trim(),
+          amount: Number(amountInput.value),
+          date: dateInput.value,
+        };
+
+        
+        const payments = loadPayments();
+        payments.push(newPayment);
+        savePayments(payments);
+
+        renderPayments(payments);
+        updateSummary(payments);
+
+        studentNameInput.value = '';
+        classNameInput.value = '';
+        amountInput.value = '';
+        studentNameInput.focus();
+      });
+
+      setDefaultDate();
+      const paymentsData = loadPayments();
+      renderPayments(paymentsData);
+      updateSummary(paymentsData);
+    })();
+  </script>
+</body>
+</html>
+
